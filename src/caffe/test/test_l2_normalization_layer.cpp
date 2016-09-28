@@ -73,9 +73,63 @@ TYPED_TEST(L2NormalizationLayerTest, TestForward) {
   }
 }
 
+TYPED_TEST(L2NormalizationLayerTest, TestForwardPlane) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  L2NormalizationParameter* l2_normalization_param =
+    layer_param.mutable_l2_normalization_param();
+  l2_normalization_param->set_channel_wise(false);
+
+  L2NormalizationLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  // Test sum
+  for (int i = 0; i < this->blob_bottom_->num(); ++i) {
+    for (int j = 0; j < this->blob_top_->channels(); ++j) {
+      Dtype sum = 0;  
+      for (int k = 0; k < this->blob_bottom_->height(); ++k) {
+        for (int l = 0; l < this->blob_bottom_->width(); ++l) {
+          sum += pow(this->blob_top_->data_at(i, j, k, l), 2.0);
+        }
+      }
+      EXPECT_GE(sum, 0.999);
+      EXPECT_LE(sum, 1.001);
+      // Test exact values
+      Dtype scale = 0;
+      for (int k = 0; k < this->blob_bottom_->height(); ++k) {
+        for (int l = 0; l < this->blob_bottom_->width(); ++l) {
+          scale += pow(this->blob_bottom_->data_at(i, j, k, l), 2.0);
+        }
+      }
+      for (int k = 0; k < this->blob_bottom_->height(); ++k) {
+        for (int l = 0; l < this->blob_bottom_->width(); ++l) {
+          EXPECT_GE(this->blob_top_->data_at(i, j, k, l) + 1e-4,
+              (this->blob_bottom_->data_at(i, j, k, l)) / sqrt(scale) )
+              << "debug: " << i << " " << j;
+          EXPECT_LE(this->blob_top_->data_at(i, j, k, l) - 1e-4,
+              (this->blob_bottom_->data_at(i, j, k, l)) / sqrt(scale) )
+               << "debug: " << i << " " << j;
+        }
+      }
+    }
+  }
+}
+
 TYPED_TEST(L2NormalizationLayerTest, TestGradient) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
+  L2NormalizationLayer<Dtype> layer(layer_param);
+  GradientChecker<Dtype> checker(1e-2, 1e-3);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_);
+}
+
+TYPED_TEST(L2NormalizationLayerTest, TestGradientPlane) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  L2NormalizationParameter* l2_normalization_param =
+    layer_param.mutable_l2_normalization_param();
+  l2_normalization_param->set_channel_wise(false);
   L2NormalizationLayer<Dtype> layer(layer_param);
   GradientChecker<Dtype> checker(1e-2, 1e-3);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
