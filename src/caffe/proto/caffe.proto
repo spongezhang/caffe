@@ -403,6 +403,11 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  //new 
+  optional L2NormalizationParameter L2_Normalization_param = 150;
+}
+message L2NormalizationParameter {
+    optional bool channel_wise = 1 [default=true];
 }
 
 // Message that stores parameters used to apply transformation
